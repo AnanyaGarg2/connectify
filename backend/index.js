@@ -23,6 +23,7 @@ app.get('/', (req, res) => {
 mongoose.connect(process.env.MONGO_URL)
     .then(() => {
         console.log("Connected to MongoDB");
+        console.log("DB NAME:", mongoose.connection.name);
     })
     .catch((error) => {
         console.error("Error connecting to MongoDB:", error);

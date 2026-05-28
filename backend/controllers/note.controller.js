@@ -1,4 +1,7 @@
+import mongoose from "mongoose";
 import Note from "../models/note.model.js";
+
+const validateObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 export const createNote = async (req, res) => {
     try {
@@ -10,7 +13,7 @@ export const createNote = async (req, res) => {
             });
         }
 
-        const newNote = new Note({ title, content });
+        const newNote = new Note({ title, content, comments: [] });
 
         await newNote.save();
 
@@ -22,7 +25,7 @@ export const createNote = async (req, res) => {
     } catch (err) {
         res.status(500).json({
             message: "Error creating note",
-            error: err
+            error: err.message
         });
     }
 };
@@ -56,6 +59,12 @@ export const updateNotes = async(req,res)=>{
             });
         }
 
+        if (!validateObjectId(req.params.id)) {
+            return res.status(400).json({
+                message: "Invalid note id"
+            });
+        }
+
         const updatedNote = await Note.findByIdAndUpdate(req.params.id, {title, content}, {new : true});
 
         if (!updatedNote) {
@@ -81,19 +90,156 @@ export const updateNotes = async(req,res)=>{
 
 export const deleteNotes = async(req,res)=>{
     try{
-     const deleteNote = await Note.findByIdAndDelete(req.params.id);
+        if (!validateObjectId(req.params.id)) {
+            return res.status(400).json({
+                message: "Invalid note id"
+            });
+        }
 
-     if(!deleteNote){
-        return res.status(404).json({
-            message : "Note not found"
+        const deleteNote = await Note.findByIdAndDelete(req.params.id);
+
+        if(!deleteNote){
+            return res.status(404).json({
+                message : "Note not found"
+            });
+        }
+
+        res.status(200).json({
+            message: "Note deleted successfully"
         });
-     }
-
-     res.status(200).json({
-         message: "Note deleted successfully"
-     });
     }
     catch(err){
         console.error("Error deleting note", err);
+        res.status(500).json({
+            message: "Error deleting note",
+            error: err.message
+        });
     }
 }
+
+export const getNoteById = async (req, res) => {
+    try {
+        if (!validateObjectId(req.params.id)) {
+            return res.status(400).json({
+                message: "Invalid note id"
+            });
+        }
+
+        const note = await Note.findById(req.params.id);
+
+        if (!note) {
+            return res.status(404).json({
+                message: "Note not found"
+            });
+        }
+
+        res.status(200).json({
+            message: "Note fetched successfully",
+            note
+        });
+    } catch (err) {
+        console.error("Error fetching note", err);
+        res.status(500).json({
+            message: "Error fetching note",
+            error: err.message
+        });
+    }
+};
+
+export const addComment = async (req, res) => {
+    try {
+        const { username, comment } = req.body;
+
+        if (!username || !comment) {
+            return res.status(400).json({
+                message: "Username and comment are required"
+            });
+        }
+
+        if (!validateObjectId(req.params.id)) {
+            return res.status(400).json({
+                message: "Invalid note id"
+            });
+        }
+
+        const note = await Note.findById(req.params.id);
+
+        if (!note) {
+            return res.status(404).json({
+                message : "Note not found"
+            });
+        }
+
+        note.comments.push({ username, comment });
+        await note.save();
+
+        res.status(200).json({
+            message : "Comment added successfully",
+            note
+        });
+    }
+    catch(err){
+        res.status(500).json({
+            message : "Error adding comment",
+            error : err.message
+        });
+    }
+};
+
+export const deleteComment = async (req, res) => {
+    try {
+        const { id, commentId } = req.params;
+        if (!validateObjectId(id)) {
+            return res.status(400).json({
+                message: "Invalid note id"
+            });
+        }
+
+        const note = await Note.findById(id);
+
+        if (!note) {
+            return res.status(404).json({
+                message : "Note not found"
+            });
+        }
+
+        // If commentId looks like an ObjectId, remove by matching _id
+        if (mongoose.Types.ObjectId.isValid(commentId)) {
+            const before = note.comments.length;
+            note.comments = note.comments.filter(c => String(c._id) !== commentId);
+            if (note.comments.length === before) {
+                return res.status(404).json({ message: "Comment not found" });
+            }
+        } else {
+            // allow deleting by numeric index (e.g., 0) for convenience
+            const idx = Number(commentId);
+            if (!Number.isNaN(idx) && idx >= 0 && idx < note.comments.length) {
+                note.comments.splice(idx, 1);
+            } else {
+                // fallback: try matching stringified _id
+                const fallback = note.comments.find(c => String(c._id) === commentId);
+                if (!fallback) {
+                    return res.status(404).json({
+                        message: "Comment not found"
+                    });
+                }
+
+                note.comments = note.comments.filter(c => String(c._id) !== String(fallback._id));
+            }
+        }
+
+        await note.save();
+
+        res.status(200).json({
+            message: "Comment deleted successfully",
+            note
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: "Error deleting comment",
+            error: err.message
+        });
+    }
+};
+
+export const addReply = addComment; // preserve existing compatibility
