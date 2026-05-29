@@ -147,43 +147,93 @@ export const getNoteById = async (req, res) => {
 };
 
 export const addComment = async (req, res) => {
-    try {
-        const { username, comment } = req.body;
+  try {
+    const { id } = req.params;
+    const { username, comment } = req.body;
 
-        if (!username || !comment) {
-            return res.status(400).json({
-                message: "Username and comment are required"
-            });
-        }
-
-        if (!validateObjectId(req.params.id)) {
-            return res.status(400).json({
-                message: "Invalid note id"
-            });
-        }
-
-        const note = await Note.findById(req.params.id);
-
-        if (!note) {
-            return res.status(404).json({
-                message : "Note not found"
-            });
-        }
-
-        note.comments.push({ username, comment, replies: [] });
-        await note.save();
-
-        res.status(200).json({
-            message : "Comment added successfully",
-            note
-        });
+    if (!validateObjectId(id)) {
+      return res.status(400).json({
+        message: "Invalid note id"
+      });
     }
-    catch(err){
-        res.status(500).json({
-            message : "Error adding comment",
-            error : err.message
-        });
+
+    if (!username || !comment) {
+      return res.status(400).json({
+        message: "Username and comment are required"
+      });
     }
+
+    const note = await Note.findById(id);
+
+    if (!note) {
+      return res.status(404).json({
+        message: "Note not found"
+      });
+    }
+
+    note.comments.push({ username, comment });
+    await note.save();
+
+    res.status(201).json({
+      message: "Comment added successfully",
+      note
+    });
+  } catch (err) {
+    console.error("Error adding comment", err);
+    res.status(500).json({
+      message: "Error adding comment",
+      error: err.message
+    });
+  }
+};
+
+export const addReply = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+    const { username, comment } = req.body;
+
+    if (!validateObjectId(id) || !validateObjectId(commentId)) {
+      return res.status(400).json({
+        message: "Invalid note or comment id"
+      });
+    }
+
+    if (!username || !comment) {
+      return res.status(400).json({
+        message: "Username and reply are required"
+      });
+    }
+
+    const note = await Note.findById(id);
+
+    if (!note) {
+      return res.status(404).json({
+        message: "Note not found"
+      });
+    }
+
+    const targetComment = note.comments.id(commentId);
+
+    if (!targetComment) {
+      return res.status(404).json({
+        message: "Comment not found"
+      });
+    }
+
+    targetComment.replies.push({ username, comment });
+    await note.save();
+
+    res.status(201).json({
+      message: "Reply added successfully",
+      note
+    });
+  } catch (err) {
+    console.error("Error adding reply", err);
+    res.status(500).json({
+      message: "Error adding reply",
+      error: err.message
+    });
+  }
 };
 
 export const deleteComment = async (req, res) => {

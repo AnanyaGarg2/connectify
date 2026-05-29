@@ -25,7 +25,23 @@ const noteSchema = new mongoose.Schema({
         createdAt: {
             type: Date,
             default: Date.now
-        }
+        },
+        replies: [{
+            username: {
+                type: String,
+                required: true,
+                trim: true
+            },
+            comment: {
+                type: String,
+                required: true,
+                trim: true
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now
+            }
+        }]
     }]
 }, {timestamps : true});
 
