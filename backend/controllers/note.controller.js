@@ -170,7 +170,7 @@ export const addComment = async (req, res) => {
             });
         }
 
-        note.comments.push({ username, comment });
+        note.comments.push({ username, comment, replies: [] });
         await note.save();
 
         res.status(200).json({
@@ -242,4 +242,3 @@ export const deleteComment = async (req, res) => {
     }
 };
 
-export const addReply = addComment; // preserve existing compatibility
